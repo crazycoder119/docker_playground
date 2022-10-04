@@ -1,0 +1,198 @@
+Simple voting app to demonstrate docker 
+----------------------------------------------------
+
+voting-app (vote) ---> in memory (redis) db -----> worker-app (worker) ---> postgress sql persistance (db)  --> result-app (result) 
+# brackets are the name of the container
+
+
+1. docker run -d --name=redis redis 
+2. docker run -d --name=db postgres:9.4
+3. docker run -d --name=vote -p 5000:80 voting-app 
+4. docker run -d --name=result -p 5001:80 result-app 
+5. docker run -d --name=worker worker 
+
+We just ran the containers but didnt link them 
+
+
+3. docker run -d --name=vote -p 5000:80 --link redis:redis voting-app : In the application we name the host="redis" so by this application gets the ip of the redis container 
+
+4. docker run -d --name=result -p 5001:80 --link db:db result-app 
+
+5. docker run -d --name=worker --link db:db --link redis:redis worker 
+
+----------------------------------------------------------------------------
+
+docker-compose.yml
+
+redis:
+	image: redis
+
+db:
+	image: postgres:9.4
+
+
+vote:
+	image:voting-app
+	ports:
+		- 5000:80
+	links:
+		- redis:redis
+
+result:
+	image: result-app
+	ports:
+		- 5001:80
+	links:
+		- db:db
+worker:
+	image:worker
+	links:
+		- db:db
+		- redis:redis
+
+---------------------------------------------------------------------------------
+
+docker-compose up 
+
+---------------------------------------------------------------------------------
+
+docker-compose --versions
+
+version 1 docker-compose.yml
+-------------
+
+redis:
+	image: redis
+
+db:
+	image: postgres:9.4
+
+
+vote:
+	image:voting-app
+	ports:
+		- 5000:80
+	links:
+		- redis:redis
+
+result:
+	image: result-app
+	ports:
+		- 5001:80
+	links:
+		- db:db
+worker:
+	image:worker
+	links:
+		- db:db
+		- redis:redis
+
+
+version 2 docker-compose.yml
+-------------
+version: 2
+services:
+	redis:
+		image: redis
+
+	db:
+		image: postgres:9.4
+
+
+	vote:
+		image:voting-app
+		ports:
+			- 5000:80
+		depends_on:
+			- redis
+
+	result:
+		image: result-app
+		ports:
+			- 5001:80
+		depends_on:
+			- db
+	worker:
+		image:worker
+		depends_on:
+			- db
+			- redis
+
+version 3 docker-compose.yml
+-------------
+version: 3
+services:
+	redis:
+		image: redis
+
+	db:
+		image: postgres:9.4
+
+
+	vote:
+		image:voting-app
+		ports:
+			- 5000:80
+		depends_on:
+			- redis
+
+	result:
+		image: result-app
+		ports:
+			- 5001:80
+		depends_on:
+			- db
+	worker:
+		image:worker
+		depends_on:
+			- db
+			- redis
+
+
+# This has support for docker swarm 
+
+
+How to configure front end network and backend network , front-end net has voting-app and result-app , back-end has redis,db,worker lets see how to do it 
+
+
+version: 2
+services:
+	redis:
+		image: redis
+		networks:
+			- back-end
+	db:
+		image: postgres:9.4
+		networks:
+			- back-end
+
+	vote:
+		image:voting-app
+		ports:
+			- 5000:80
+		depends_on:
+			- redis
+		networks:
+			- front-end
+			- back-end
+
+	result:
+		image: result-app
+		ports:
+			- 5001:80
+		depends_on:
+			- db
+		networks:
+			- front-end
+			- back-end
+	worker:
+		image:worker
+		depends_on:
+			- db
+			- redis
+		networks:
+			- back-end
+
+networks:
+	front-end:
+	back-end: 
